@@ -4,7 +4,10 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
-
+from sklearn.feature_extraction.text import CountVectorizer , TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+ 
 # Load CSV files into DataFrames
 df_fake = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/Fake.csv")
 df_real = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/True.csv")
@@ -23,42 +26,48 @@ df_real['label'] = 'True'  # Real news får etikett 1
 # Concatenate the fake and real datasets into one combined DataFrame
 df = pd.concat([df_fake, df_real], ignore_index=True)
 
-# Fix the column names to include the correct columns and the new 'label'
-df.columns = ["title", "text", "subject", "date", "label"]
 
-X = df.iloc[:,:-1]
-Y = df.iloc[:,-1]
+df["processed_text"] = df["title"]+ " " + df["text"]
+df["processed_text"] = df["processed_text"].str.lower(); 
+
+
+# Fix the column names to include the correct columns and the new 'label'
+df.columns = ["title", "text", "subject", "date", "label", "processed_text"]
+
+X = df.iloc[:,-1]
+Y = df.iloc[:,-2]
 #print(X)
 #print (Y)
 
-df.columns
+# Split words and explode DataFrame to have each word in its own row
+df_words = df.assign(word=df["processed_text"].str.split()).explode("word")
 
-# Print first row clearly
-#first_row = df.head(1)
-#print(first_row)
+# Visa resultatet
+#print(df_words[["word", "label"]].head())
 
 seed  = 42
 np.random.seed(seed)
 X_train,X_test, Y_train, Y_test = train_test_split(X,Y, test_size= 0.20, random_state=seed)
 
+print(f"Testing sampels: {len(X_train)}, Testing samples : {len(X_test)}")
 
+vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
 
+#TF_IDF = Varje ord viktas beroende på hur viktigt och ovanligt ordet är. 
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
 
-# random forest 
-rf_classifier = RandomForestClassifier(n_estimators=100, random_state=42)
+#print(X_train_tfidf)
 
-# Fit the classifier to the training data
-rf_classifier.fit(X_train, Y_train)
+#train model_ Logistic Regression	 
+model_LogRed = LogisticRegression()
+model_LogRed.fit(X_train_tfidf, Y_train)
 
-# Make predictions
-y_pred = rf_classifier.predict(X_test)
+# make predictions 
+y_pred = model_LogRed.predict(X_test_tfidf)
 
-# Calculate accuracy and classification report
-accuracy = accuracy_score(Y_test, y_pred)
-classification_rep = classification_report(Y_test, y_pred)
+print ( "Accuracy: ", accuracy_score(Y_test, y_pred))
+print( classification_report(Y_test,y_pred))
 
-# Print the results
-print(f"Accuracy: {accuracy:.2f}")
-print("\nClassification Report:\n", classification_rep)
-
-
+#SVM 
+#Random_forest 

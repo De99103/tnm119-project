@@ -13,9 +13,8 @@ import os
 
 
 # Load CSV files into DataFrames
-df_fake = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/Fake.csv")
-df_real = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/True.csv")
-
+df_fake = pd.read_csv("dataset\Fake.csv")
+df_real = pd.read_csv("dataset\True.csv")
 # Display DataFrames
 #print("Fake News DataFrame (head):")
 #print(df_fake.head())

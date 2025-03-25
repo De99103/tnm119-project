@@ -1,13 +1,17 @@
 
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt 
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report,  roc_curve, auc
 from sklearn.feature_extraction.text import CountVectorizer , TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
- 
+
+import os 
+
+
 # Load CSV files into DataFrames
 df_fake = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/Fake.csv")
 df_real = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project /dataset/True.csv")
@@ -20,8 +24,8 @@ df_real = pd.read_csv("/Users/deemaabogheda/Desktop/study/Termin6/TNM119/project
 #print(df_real.head())
 
 # Lägg till en kolumn med etikett (label)
-df_fake['label'] = 'Fake'  # Fake news får etikett 0
-df_real['label'] = 'True'  # Real news får etikett 1
+df_fake['label'] = 0 # Fake news får etikett 0
+df_real['label'] = 1  # Real news får etikett 1
 
 # Concatenate the fake and real datasets into one combined DataFrame
 df = pd.concat([df_fake, df_real], ignore_index=True)
@@ -36,6 +40,7 @@ df.columns = ["title", "text", "subject", "date", "label", "processed_text"]
 
 X = df.iloc[:,-1]
 Y = df.iloc[:,-2]
+
 #print(X)
 #print (Y)
 
@@ -51,23 +56,90 @@ X_train,X_test, Y_train, Y_test = train_test_split(X,Y, test_size= 0.20, random_
 
 print(f"Testing sampels: {len(X_train)}, Testing samples : {len(X_test)}")
 
-vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
 
+vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
 #TF_IDF = Varje ord viktas beroende på hur viktigt och ovanligt ordet är. 
 X_train_tfidf = vectorizer.fit_transform(X_train)
 X_test_tfidf = vectorizer.transform(X_test)
 
 #print(X_train_tfidf)
 
-#train model_ Logistic Regression	 
+
+# ==== Logistic Regression ====
 model_LogRed = LogisticRegression()
 model_LogRed.fit(X_train_tfidf, Y_train)
 
 # make predictions 
-y_pred = model_LogRed.predict(X_test_tfidf)
+y_pred_logRed = model_LogRed.predict(X_test_tfidf)
 
-print ( "Accuracy: ", accuracy_score(Y_test, y_pred))
-print( classification_report(Y_test,y_pred))
 
-#SVM 
-#Random_forest 
+accuracy_logReg = accuracy_score(Y_test, y_pred_logRed)
+print(f"Logistic Regression Accuracy: {accuracy_logReg:.4f}")
+
+# ==== Random Forest ====
+
+rf_clf = RandomForestClassifier(n_estimators=4)
+rf_clf.fit(X_train_tfidf, Y_train)
+
+Y_pred_Rf = rf_clf.predict(X_test_tfidf)
+
+# Print Accuracy
+accuracy_Rf = accuracy_score(Y_test, Y_pred_Rf)
+print(f"Random Forest Accuracy: {accuracy_Rf:.4f}")
+
+## Print Classification Report
+print(classification_report(Y_test, Y_pred_Rf))
+
+# ==== SVM ====
+#2 FITTING A MODEL TO THE TRAINING DATA
+#linear boundary to separate classes, high C -> complex might not classify unseen data correctly, low C -> better performance
+svm_clf = SVC(kernel='linear', C=0.1, gamma="scale")
+
+#4 TRANSFORMING THE TEST DATA TO FIND DECISION BOUNDARY
+#finds the best location for the linear boundary
+svm_clf.fit(X_train_tfidf, Y_train)
+print("working 1 ... ")
+
+Y_pred_SVM = svm_clf.predict(X_test_tfidf)
+print("working 2 ... ")
+
+# Print Accuracy
+accuracy_SVM = accuracy_score(Y_test, Y_pred_SVM)
+print(f"SVM Accuracy: {accuracy_SVM:.4f}")
+
+# Print Classification Report
+print(classification_report(Y_test, Y_pred_SVM))
+
+
+# ==== ROC-kurva ====
+#breäkna sannolikheter
+y_prob_logReg = model_LogRed.predict_proba(X_test_tfidf)[:,-1]
+
+#ROC
+#fpr= False Positive Rate, tpr Ture Positive Rate
+#fpr, tpr, thresholds = roc_curve(...)
+#lägger en _ för att vi vill skippa thresholds. 
+
+fpr_logReg, tpr_logReg, _ = roc_curve(Y_test, y_prob_logReg)
+roc_auc_logReg = auc(fpr_logReg,tpr_logReg)
+
+fpr_Rf, tpr_Rf, _ = roc_curve(Y_test, Y_pred_Rf)
+roc_auc_logRf = auc(fpr_Rf,tpr_Rf)
+
+fpr_SVM, tpr_SVM, _ = roc_curve(Y_test, Y_pred_SVM)
+roc_auc_SVM = auc(fpr_SVM,tpr_SVM)
+
+# Plotta ROC
+plt.figure(figsize=(8, 6))
+
+plt.plot(fpr_logReg, tpr_logReg, color='blue', label=f"Logistic Regression (AUC = {roc_auc_logReg:.2f})")
+plt.plot(fpr_Rf, tpr_Rf, color='red', label=f"Logistic Regression (AUC = {roc_auc_logRf:.2f})")
+plt.plot(fpr_SVM, tpr_SVM, color='green', label=f"Logistic Regression (AUC = {roc_auc_SVM:.2f})")
+
+plt.plot([0, 1], [0, 1], linestyle='--', color='gray')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve - Logistic Regression')
+plt.legend(loc='lower right')
+plt.grid(True)
+plt.show()
